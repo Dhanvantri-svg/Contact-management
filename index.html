@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Contact Manager</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background-color: #f0f2f5; display: flex; justify-content: center; padding: 25px 10px; }
+        .container { background: white; width: 100%; max-width: 450px; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { margin-bottom: 15px; text-align: center; color: #333; }
+        input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { width: 100%; padding: 10px; background-color: #0066cc; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        button:hover { background-color: #0052a3; }
+        .search-box { margin-top: 15px; border-color: #0066cc; }
+        ul { list-style: none; margin-top: 15px; }
+        li { background: #f9f9f9; padding: 10px; border: 1px solid #ddd; margin-bottom: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .actions button { width: auto; padding: 5px 8px; font-size: 12px; margin-left: 5px; }
+        .edit-btn { background: #ff9800; }
+        .del-btn { background: #ff4d4d; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Cloud Contact Manager</h2>
+    <input type="hidden" id="editIndex" value="-1">
+    <input type="text" id="nameInput" placeholder="Name">
+    <input type="text" id="phoneInput" placeholder="Phone Number">
+    <button id="saveBtn">Save to Cloud</button>
+
+    <input type="text" id="searchInput" class="search-box" placeholder="Search contacts..." onkeyup="searchContacts()">
+    <ul id="contactList"></ul>
+</div>
+
+<script>
+    let contacts = JSON.parse(localStorage.getItem('cloud_contacts')) || [];
+
+    function renderContacts(data = contacts) {
+        const list = document.getElementById('contactList');
+        list.innerHTML = '';
+        if (data.length === 0) {
+            list.innerHTML = '<p style="color:#777; text-align:center;">No contacts found.</p>';
+            return;
+        }
+        data.forEach((c, index) => {
+            list.innerHTML += `
+                <li>
+                    <div>
+                        <strong>${c.name}</strong><br>
+                        <small style="color:#555;">${c.phone}</small>
+                    </div>
+                    <div class="actions">
+                        <button class="edit-btn" onclick="editContact(${index})">Edit</button>
+                        <button class="del-btn" onclick="deleteContact(${index})">Delete</button>
+                    </div>
+                </li>
+            `;
+        });
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', function() {
+        const name = document.getElementById('nameInput').value.trim();
+        const phone = document.getElementById('phoneInput').value.trim();
+        const editIndex = document.getElementById('editIndex').value;
+
+        if (!name || !phone) {
+            alert('Please enter Name and Phone Number!');
+            return;
+        }
+
+        if (editIndex === "-1") {
+            contacts.push({ name, phone });
+            alert('Contact Saved!');
+        } else {
+            contacts[editIndex] = { name, phone };
+            document.getElementById('editIndex').value = "-1";
+            document.getElementById('saveBtn').innerText = "Save to Cloud";
+            alert('Contact Updated!');
+        }
+
+        localStorage.setItem('cloud_contacts', JSON.stringify(contacts));
+        document.getElementById('nameInput').value = '';
+        document.getElementById('phoneInput').value = '';
+        renderContacts();
+    });
+
+    function editContact(index) {
+        document.getElementById('nameInput').value = contacts[index].name;
+        document.getElementById('phoneInput').value = contacts[index].phone;
+        document.getElementById('editIndex').value = index;
+        document.getElementById('saveBtn').innerText = "Update Contact";
+    }
+
+    function deleteContact(index) {
+        if (confirm("Delete this contact?")) {
+            contacts.splice(index, 1);
+            localStorage.setItem('cloud_contacts', JSON.stringify(contacts));
+            renderContacts();
+        }
+    }
+
+    function searchContacts() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = contacts.filter(c => c.name.toLowerCase().includes(query));
+        renderContacts(filtered);
+    }
+
+    renderContacts();
+</script>
+
+</body>
+</html>
+
