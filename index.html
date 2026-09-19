@@ -32,82 +32,120 @@
     <input type="text" id="searchInput" class="search-box" placeholder="Search contacts..." onkeyup="searchContacts()">
     <ul id="contactList"></ul>
 </div>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script>
-    let contacts = JSON.parse(localStorage.getItem('cloud_contacts')) || [];
+  // Firebase Configuration 
+    const firebaseConfig = {
+    apiKey: "AIzaSyBFE2E0FAQp0RkHeP-5EFWFAr_lMdsKwG0",
+    authDomain: "contact-manager-9bfb9.firebaseapp.com",
+    databaseURL: "https://contact-manager-9bfb9-default-rtdb.firebaseio.com",
+    projectId: "contact-manager-9bfb9",
+    storageBucket: "contact-manager-9bfb9.firebasestorage.app",
+    messagingSenderId: "617092013007",
+    appId: "1:617092013007:web:b36f4b4da655841ac690ba"
+  };
 
-    function renderContacts(data = contacts) {
-        const list = document.getElementById('contactList');
-        list.innerHTML = '';
-        if (data.length === 0) {
-            list.innerHTML = '<p style="color:#777; text-align:center;">No contacts found.</p>';
-            return;
-        }
-        data.forEach((c, index) => {
-            list.innerHTML += `
-                <li>
-                    <div>
-                        <strong>${c.name}</strong><br>
-                        <small style="color:#555;">${c.phone}</small>
-                    </div>
-                    <div class="actions">
-                        <button class="edit-btn" onclick="editContact(${index})">Edit</button>
-                        <button class="del-btn" onclick="deleteContact(${index})">Delete</button>
-                    </div>
-                </li>
-            `;
-        });
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const database = firebase.database();
+  const contactsRef = database.ref('contacts');
+
+  let allContacts = [];
+
+  // Load Contacts Real-time from Firebase
+  contactsRef.on('value', (snapshot) => {
+    const data = snapshot.val();
+    allContacts = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+    renderContacts(allContacts);
+  });
+
+  // Render Contacts to UI
+  function renderContacts(data = allContacts) {
+    const list = document.getElementById('contactList');
+    list.innerHTML = '';
+    if (data.length === 0) {
+      list.innerHTML = '<p style="color: #666; text-align: center;">No contacts found.</p>';
+      return;
     }
-
-    document.getElementById('saveBtn').addEventListener('click', function() {
-        const name = document.getElementById('nameInput').value.trim();
-        const phone = document.getElementById('phoneInput').value.trim();
-        const editIndex = document.getElementById('editIndex').value;
-
-        if (!name || !phone) {
-            alert('Please enter Name and Phone Number!');
-            return;
-        }
-
-        if (editIndex === "-1") {
-            contacts.push({ name, phone });
-            alert('Contact Saved!');
-        } else {
-            contacts[editIndex] = { name, phone };
-            document.getElementById('editIndex').value = "-1";
-            document.getElementById('saveBtn').innerText = "Save to Cloud";
-            alert('Contact Updated!');
-        }
-
-        localStorage.setItem('cloud_contacts', JSON.stringify(contacts));
-        document.getElementById('nameInput').value = '';
-        document.getElementById('phoneInput').value = '';
-        renderContacts();
+    data.forEach((c) => {
+      list.innerHTML += `
+        <li>
+          <div>
+            <strong>${c.name}</strong><br>
+            <small style="color: #555;">${c.phone}</small>
+          </div>
+          <div class="actions">
+            <button class="edit-btn" onclick="editContact('${c.id}')">Edit</button>
+            <button class="del-btn" onclick="deleteContact('${c.id}')">Delete</button>
+          </div>
+        </li>
+      `;
     });
+  }
 
-    function editContact(index) {
-        document.getElementById('nameInput').value = contacts[index].name;
-        document.getElementById('phoneInput').value = contacts[index].phone;
-        document.getElementById('editIndex').value = index;
-        document.getElementById('saveBtn').innerText = "Update Contact";
+  // Save / Update Contact
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    const nameInput = document.getElementById('nameInput');
+    const phoneInput = document.getElementById('phoneInput');
+    const editIndex = document.getElementById('editIndex');
+
+    const name = nameInput.value.trim();
+    const phone = phoneInput.value.trim();
+
+    if (!name || !phone) {
+      alert('Please enter Name and Phone number');
+      return;
     }
 
-    function deleteContact(index) {
-        if (confirm("Delete this contact?")) {
-            contacts.splice(index, 1);
-            localStorage.setItem('cloud_contacts', JSON.stringify(contacts));
-            renderContacts();
-        }
+    if (editIndex.value === "-1") {
+      // Add New
+      contactsRef.push({ name, phone });
+      alert('Contact Saved!');
+    } else {
+      // Update Existing
+      const contactId = editIndex.value;
+      database.ref('contacts/' + contactId).update({ name, phone });
+      editIndex.value = "-1";
+      document.getElementById('saveBtn').innerText = 'Save Contact';
+      alert('Contact Updated!');
     }
 
-    function searchContacts() {
-        const query = document.getElementById('searchInput').value.toLowerCase();
-        const filtered = contacts.filter(c => c.name.toLowerCase().includes(query));
-        renderContacts(filtered);
-    }
+    nameInput.value = '';
+    phoneInput.value = '';
+  });
 
-    renderContacts();
+  // Edit Contact Setup
+  function editContact(id) {
+    const contact = allContacts.find(c => c.id === id);
+    if (contact) {
+      document.getElementById('nameInput').value = contact.name;
+      document.getElementById('phoneInput').value = contact.phone;
+      document.getElementById('editIndex').value = id;
+      document.getElementById('saveBtn').innerText = 'Update Contact';
+    }
+  }
+
+  // Delete Contact
+  function deleteContact(id) {
+    if (confirm("Delete this contact?")) {
+      database.ref('contacts/' + id).remove();
+    }
+  }
+
+  // Search Contacts
+  function searchContacts() {
+    const query = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = allContacts.filter(c => 
+      c.name.toLowerCase().includes(query) || c.phone.includes(query)
+    );
+    renderContacts(filtered);
+  }
 </script>
+
 
 </body>
 </html>
